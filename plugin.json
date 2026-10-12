@@ -1,0 +1,26 @@
+{
+  "slug": "DreamingModular",
+  "name": "Dreaming Modular",
+  "version": "2.0.0",
+  "license": "GPL-3.0-or-later",
+  "brand": "Dreaming Modular",
+  "author": "Reid Messer",
+  "authorEmail": "",
+  "authorUrl": "https://github.com/messerdsp",
+  "pluginUrl": "https://github.com/messerdsp/DreamingModular",
+  "manualUrl": "",
+  "sourceUrl": "https://github.com/messerdsp/DreamingModular",
+  "donateUrl": "",
+  "changelogUrl": "",
+  "modules": [
+    {
+      "slug": "Kick",
+      "name": "Kick",
+      "description": "Synthesized kick drum",
+      "tags": [
+        "Drum",
+        "Synth voice"
+      ]
+    }
+  ]
+}
