@@ -9,9 +9,8 @@ static const Vec SWEEP_PARAM(10.16f, 50.00f);
 static const Vec SWEEP_DECAY_PARAM(30.48f, 50.00f);
 static const Vec DECAY_PARAM(10.16f, 72.00f);
 static const Vec CLICK_PARAM(30.48f, 72.00f);
-static const Vec VOCT_INPUT(10.16f, 95.00f);
-static const Vec TRIG_INPUT(10.16f, 115.00f);
-static const Vec OUT_OUTPUT(30.48f, 115.00f);
-static const Vec TRIG_LIGHT(15.76f, 108.60f);
+static const Vec TRIG_INPUT(7.60f, 115.00f);
+static const Vec VOCT_INPUT(20.32f, 115.00f);
+static const Vec OUT_OUTPUT(33.04f, 115.00f);
 
 } // namespace KickLayout

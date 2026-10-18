@@ -23,7 +23,6 @@ struct Kick : Module {
 	};
 
 	enum LightId {
-		TRIG_LIGHT,
 		LIGHTS_LEN
 	};
 
@@ -60,9 +59,7 @@ struct Kick : Module {
 		configParam(CLICK_PARAM, 0.f, 1.f, 0.6f, "Click", "%", 0.f, 100.f);
 		configInput(VOCT_INPUT, "Pitch (1V/oct)");
 		configInput(TRIG_INPUT, "Trigger");
-		configOutput(OUT_OUTPUT, "Kick");
-		configLight(TRIG_LIGHT, "Trigger");
-	}
+		configOutput(OUT_OUTPUT, "Kick");	}
 
 	void process(const ProcessArgs& args) override {
 		float amplitudeDecay = params[DECAY_PARAM].getValue();
@@ -103,10 +100,7 @@ struct Kick : Module {
 			lowpass2.setParameters(dsp::BiquadFilter::LOWPASS, f, 1.3066f, 1.f);
 		}
 		float out = lowpass2.process(lowpass1.process(sine * kickAmplitude));
-		outputs[OUT_OUTPUT].setVoltage(5.f * out);
-
-		lights[TRIG_LIGHT].setBrightnessSmooth(kickAmplitude, args.sampleTime);
-	}
+		outputs[OUT_OUTPUT].setVoltage(5.f * out);	}
 
 	void startKick(float sweepDepth) {
 		// Restart the sine at phase 0 so every hit starts the same way (consistent transient).
@@ -165,10 +159,7 @@ struct KickWidget : ModuleWidget {
 		addInput(createInputCentered<PJ301MPort>(mm2px(KickLayout::VOCT_INPUT), module, Kick::VOCT_INPUT));
 		addInput(createInputCentered<PJ301MPort>(mm2px(KickLayout::TRIG_INPUT), module, Kick::TRIG_INPUT));
 
-		addOutput(createOutputCentered<PJ301MPort>(mm2px(KickLayout::OUT_OUTPUT), module, Kick::OUT_OUTPUT));
-
-		addChild(createLightCentered<MediumLight<RedLight>>(mm2px(KickLayout::TRIG_LIGHT), module, Kick::TRIG_LIGHT));
-	}
+		addOutput(createOutputCentered<PJ301MPort>(mm2px(KickLayout::OUT_OUTPUT), module, Kick::OUT_OUTPUT));	}
 };
 
 
