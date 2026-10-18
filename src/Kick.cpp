@@ -7,12 +7,12 @@ struct Kick : Module {
 		SWEEP_PARAM,
 		SWEEP_DECAY_PARAM,
 		DECAY_PARAM,
-		PITCH_CV_PARAM,     // attenuverter for PITCH_CV_INPUT
+		CLICK_PARAM,
 		PARAMS_LEN
 	};
 
 	enum InputId {
-		PITCH_CV_INPUT,
+		VOCT_INPUT,
 		TRIG_INPUT,
 		INPUTS_LEN
 	};
@@ -32,6 +32,20 @@ struct Kick : Module {
 	float kickAmplitude = 0.f;
 	float kickPitch = 0.f;   // current pitch-sweep offset, in octaves
 
+	// Click: noise phase-modulates the sine for the first few ms of each hit.
+	// The CLICK knob sets the FM amount. More FM = louder click and a slightly brighter one.
+	static constexpr float CLICK_MAX_INDEX = 3.5f;  // peak phase deviation at 100%, radians
+	static constexpr float CLICK_HOLD = 0.001f;     // seconds at full strength
+	static constexpr float CLICK_DECAY = 0.005f;    // seconds to -60 dB after the hold
+	float clickEnv = 0.f;
+	float clickHoldTimer = 0.f;
+
+	// 24 dB/oct Butterworth lowpass = two 12 dB biquads in series with these Q values.
+	// (A single biquad with Q 0.707 is the 12 dB Butterworth; the 4th-order one splits into 0.541 and 1.307.)
+	static constexpr float LOWPASS_FREQ = 3700.f;
+	dsp::BiquadFilter lowpass1, lowpass2;
+	float filterSampleRate = 0.f;
+
 	dsp::SchmittTrigger trigger;
 
 	Kick() {
@@ -42,11 +56,9 @@ struct Kick : Module {
 		configParam(PITCH_PARAM, -3.f, -1.f, -2.3f, "Pitch", " Hz", 2.f, dsp::FREQ_C4);
 		configParam(SWEEP_PARAM, 0.f, 4.f, 2.5f, "Pitch sweep", " oct");
 		configParam(SWEEP_DECAY_PARAM, 0.005f, 0.5f, 0.1f, "Pitch sweep decay", " ms", 0.f, 1000.f);
-		configParam(DECAY_PARAM, 0.05f, 2.f, 0.5f, "Amplitude decay", " ms", 0.f, 1000.f);
-		// Attenuverter: -100%..+100%. Default +100% so the CV input tracks 1V/oct.
-		configParam(PITCH_CV_PARAM, -1.f, 1.f, 1.f, "Pitch CV amount", "%", 0.f, 100.f);
-
-		configInput(PITCH_CV_INPUT, "Pitch CV (1V/oct at 100%)");
+		configParam(DECAY_PARAM, 0.05f, 2.f, 0.275f, "Amplitude decay", " ms", 0.f, 1000.f);
+		configParam(CLICK_PARAM, 0.f, 1.f, 0.6f, "Click", "%", 0.f, 100.f);
+		configInput(VOCT_INPUT, "Pitch (1V/oct)");
 		configInput(TRIG_INPUT, "Trigger");
 		configOutput(OUT_OUTPUT, "Kick");
 		configLight(TRIG_LIGHT, "Trigger");
@@ -61,9 +73,9 @@ struct Kick : Module {
 			startKick(sweepDepth);
 		}
 
-		// Pitch in octaves (relative to C4): knob + attenuated CV + sweep envelope.
+		// Pitch in octaves (relative to C4): knob + 1V/oct input + sweep envelope.
 		float pitch = params[PITCH_PARAM].getValue();
-		pitch += params[PITCH_CV_PARAM].getValue() * inputs[PITCH_CV_INPUT].getVoltage();
+		pitch += inputs[VOCT_INPUT].getVoltage();
 		pitch += kickPitch;
 
 		float freq = dsp::FREQ_C4 * std::pow(2.f, pitch);
@@ -77,8 +89,21 @@ struct Kick : Module {
 		if (phase >= 1.f)
 			phase -= 1.f;
 
-		float sine = std::sin(2.f * M_PI * phase);
-		outputs[OUT_OUTPUT].setVoltage(5.f * sine * kickAmplitude);
+		updateClick(args.sampleTime);
+		// White noise in -1..1, scaled by the click envelope, added to the sine's phase.
+		float noise = 2.f * random::uniform() - 1.f;
+		float clickIndex = CLICK_MAX_INDEX * params[CLICK_PARAM].getValue();
+		float sine = std::sin(2.f * M_PI * phase + clickIndex * clickEnv * noise);
+
+		// Filter coefficients depend on the sample rate, so recompute them only when it changes.
+		if (args.sampleRate != filterSampleRate) {
+			filterSampleRate = args.sampleRate;
+			float f = LOWPASS_FREQ / args.sampleRate;
+			lowpass1.setParameters(dsp::BiquadFilter::LOWPASS, f, 0.5412f, 1.f);
+			lowpass2.setParameters(dsp::BiquadFilter::LOWPASS, f, 1.3066f, 1.f);
+		}
+		float out = lowpass2.process(lowpass1.process(sine * kickAmplitude));
+		outputs[OUT_OUTPUT].setVoltage(5.f * out);
 
 		lights[TRIG_LIGHT].setBrightnessSmooth(kickAmplitude, args.sampleTime);
 	}
@@ -88,6 +113,19 @@ struct Kick : Module {
 		phase = 0.f;
 		kickAmplitude = 1.f;
 		kickPitch = sweepDepth;
+		clickEnv = 1.f;
+		clickHoldTimer = CLICK_HOLD;
+	}
+
+	// Instant attack, short hold at full strength, then the same exponential decay as the others.
+	void updateClick(float deltaTime) {
+		if (clickHoldTimer > 0.f) {
+			clickHoldTimer -= deltaTime;
+			return;
+		}
+		clickEnv *= std::exp(-6.9078f / CLICK_DECAY * deltaTime);
+		if (clickEnv < 0.001f)
+			clickEnv = 0.f;
 	}
 
 	// Both envelopes are exponential decays that reach about -60 dB after decayTime.
@@ -123,9 +161,8 @@ struct KickWidget : ModuleWidget {
 		addParam(createParamCentered<Davies1900hWhiteKnob>(mm2px(KickLayout::SWEEP_PARAM), module, Kick::SWEEP_PARAM));
 		addParam(createParamCentered<Davies1900hWhiteKnob>(mm2px(KickLayout::SWEEP_DECAY_PARAM), module, Kick::SWEEP_DECAY_PARAM));
 		addParam(createParamCentered<Davies1900hWhiteKnob>(mm2px(KickLayout::DECAY_PARAM), module, Kick::DECAY_PARAM));
-		addParam(createParamCentered<Trimpot>(mm2px(KickLayout::PITCH_CV_PARAM), module, Kick::PITCH_CV_PARAM));
-
-		addInput(createInputCentered<PJ301MPort>(mm2px(KickLayout::PITCH_CV_INPUT), module, Kick::PITCH_CV_INPUT));
+		addParam(createParamCentered<Davies1900hWhiteKnob>(mm2px(KickLayout::CLICK_PARAM), module, Kick::CLICK_PARAM));
+		addInput(createInputCentered<PJ301MPort>(mm2px(KickLayout::VOCT_INPUT), module, Kick::VOCT_INPUT));
 		addInput(createInputCentered<PJ301MPort>(mm2px(KickLayout::TRIG_INPUT), module, Kick::TRIG_INPUT));
 
 		addOutput(createOutputCentered<PJ301MPort>(mm2px(KickLayout::OUT_OUTPUT), module, Kick::OUT_OUTPUT));

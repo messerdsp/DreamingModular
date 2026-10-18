@@ -14,9 +14,11 @@ Working now:
 
 - Sine with an exponential pitch sweep (depth and decay)
 - Exponential amplitude decay
-- Trigger input, pitch CV input with attenuverter
+- Click made by phase-modulating the sine with white noise (instant attack, 1 ms hold, short decay), so the click and the thump come from one source. The CLICK knob sets the FM amount.
+- 24 dB/oct Butterworth lowpass at 3.7 kHz to tame the click
+- Trigger input, 1V/oct pitch input
 
-Next: noise-FM click, far-field path, near/far mix, stereo outputs.
+Next: far-field path, near/far mix, stereo outputs.
 
 ## Building
 
