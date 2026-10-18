@@ -57,9 +57,11 @@ struct Kick : Module {
 		configParam(SWEEP_DECAY_PARAM, 0.005f, 0.5f, 0.1f, "Pitch sweep decay", " ms", 0.f, 1000.f);
 		configParam(DECAY_PARAM, 0.05f, 2.f, 0.275f, "Amplitude decay", " ms", 0.f, 1000.f);
 		configParam(CLICK_PARAM, 0.f, 1.f, 0.6f, "Click", "%", 0.f, 100.f);
+
 		configInput(VOCT_INPUT, "Pitch (1V/oct)");
 		configInput(TRIG_INPUT, "Trigger");
-		configOutput(OUT_OUTPUT, "Kick");	}
+		configOutput(OUT_OUTPUT, "Kick");
+	}
 
 	void process(const ProcessArgs& args) override {
 		float amplitudeDecay = params[DECAY_PARAM].getValue();
@@ -100,7 +102,8 @@ struct Kick : Module {
 			lowpass2.setParameters(dsp::BiquadFilter::LOWPASS, f, 1.3066f, 1.f);
 		}
 		float out = lowpass2.process(lowpass1.process(sine * kickAmplitude));
-		outputs[OUT_OUTPUT].setVoltage(5.f * out);	}
+		outputs[OUT_OUTPUT].setVoltage(5.f * out);
+	}
 
 	void startKick(float sweepDepth) {
 		// Restart the sine at phase 0 so every hit starts the same way (consistent transient).
@@ -156,10 +159,12 @@ struct KickWidget : ModuleWidget {
 		addParam(createParamCentered<Davies1900hWhiteKnob>(mm2px(KickLayout::SWEEP_DECAY_PARAM), module, Kick::SWEEP_DECAY_PARAM));
 		addParam(createParamCentered<Davies1900hWhiteKnob>(mm2px(KickLayout::DECAY_PARAM), module, Kick::DECAY_PARAM));
 		addParam(createParamCentered<Davies1900hWhiteKnob>(mm2px(KickLayout::CLICK_PARAM), module, Kick::CLICK_PARAM));
+
 		addInput(createInputCentered<PJ301MPort>(mm2px(KickLayout::VOCT_INPUT), module, Kick::VOCT_INPUT));
 		addInput(createInputCentered<PJ301MPort>(mm2px(KickLayout::TRIG_INPUT), module, Kick::TRIG_INPUT));
 
-		addOutput(createOutputCentered<PJ301MPort>(mm2px(KickLayout::OUT_OUTPUT), module, Kick::OUT_OUTPUT));	}
+		addOutput(createOutputCentered<PJ301MPort>(mm2px(KickLayout::OUT_OUTPUT), module, Kick::OUT_OUTPUT));
+	}
 };
 
 
